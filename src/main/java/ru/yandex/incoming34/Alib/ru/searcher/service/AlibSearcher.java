@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service("alibsearcher")
@@ -35,44 +34,23 @@ public class AlibSearcher {
                 + "0&Bo1=%CD%E0%E9%F2%E8";
 
 
-        Document doc = Jsoup.connect(request).post();
-        doc.charset(StandardCharsets.UTF_16);
-        //System.out.println(doc);
-        Elements elements = doc.getElementsByTag("p");
-        //System.out.println(elements);
-        List<Element> foundBooks = elements.stream().filter(element -> element.text().contains(author)).collect(Collectors.toList());
-        Optional<Element> links = doc.getAllElements().stream()
-                //.filter(e -> e.toString().contains("Cтраницы"))
+        final Document document = Jsoup.connect(request).post();
+        document.charset(StandardCharsets.UTF_16);
+        final Elements elements = document.getElementsByTag("p");
+        final List<Element> foundBooks = elements.stream().filter(element -> element.text().contains(author)).collect(Collectors.toList());
+        final List<String> linksToNextPages = new ArrayList<>();
+        document.getAllElements().stream()
                 .filter(e -> e.outerHtml().startsWith("<b>Cтраницы"))
-                .findAny();
-        //List<String> ww = links.get().childNodes().stream().map(e -> e.baseUri()).toList();
-        List<String> ee = new ArrayList<>();
-                doc.getAllElements().stream()
-                .filter(e -> e.outerHtml().startsWith("<b>Cтраницы"))
-                .findAny().ifPresent(element -> element.childNodes().stream().forEach(e -> {
+                .findAny()
+                .ifPresent(element -> element.childNodes().forEach(e -> {
                    String link =  e.baseUri();
-                   ee.add(link);
+                   linksToNextPages.add(link);
                         }));
-
-        
-        //findLinksToNextPages(pages);
-        //List<Element> links = new ArrayList<>();
         System.out.println();
 
         for (Element element : foundBooks) {
             System.out.println(element.text());
         }
-
 // author=%F0%EE%EC%E0%F8%EA%E8%ED+&title=&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby=0&Bo1=%CD%E0%E9%F2%E8
-    }
-// pages.get().stream().map(element -> element.baseUri()).collect(Collectors.toList());
-    private void findLinksToNextPages(Optional<Element> pages) {
-        int s = pages.get().childNodeSize();
-        List<String> links = new ArrayList<>();
-        List<Element> ww = pages.get().stream().filter(element -> !element.html().isBlank()).collect(Collectors.toList());
-        for (int i = 0; i < s; i++){
-            Element qq = pages.get().child(i);
-            links.add(qq.html());
-        }
     }
 }
