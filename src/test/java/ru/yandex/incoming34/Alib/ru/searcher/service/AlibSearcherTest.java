@@ -19,7 +19,8 @@ class AlibSearcherTest {
     @Test
     public void searchTest(){
         System.out.println(alibSearcher);
-        alibSearcher.search("Ромашкин", "Современное руководство пчеловода");
+        //alibSearcher.search("Ромашкин", "Современное руководство пчеловода");
+        alibSearcher.search("Иванов", null);
         //"%F0%EE%EC%E0%F8%EA%E8%ED"
     }
 
