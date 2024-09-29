@@ -2,7 +2,6 @@ package ru.yandex.incoming34.Alib.ru.searcher.service;
 
 import lombok.SneakyThrows;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -67,7 +66,7 @@ public class AlibSearcher {
         return new BookSeller(bookSellername, linkToBookSeller);
     }
 
-    private int derivePrice(Element element) {
+    private Integer derivePrice(Element element) {
        final String textOfElement =  element.childNodes().get(5).toString();
        final int initPosition = textOfElement.indexOf("Цена: ");
        final StringBuilder builder = new StringBuilder();
