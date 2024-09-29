@@ -41,12 +41,23 @@ public class AlibSearcher {
         Elements elements = doc.getElementsByTag("p");
         //System.out.println(elements);
         List<Element> foundBooks = elements.stream().filter(element -> element.text().contains(author)).collect(Collectors.toList());
-        Optional<Element> pages = doc.getAllElements().stream()
-                .filter(e -> e.toString().contains("Cтраницы"))
+        Optional<Element> links = doc.getAllElements().stream()
+                //.filter(e -> e.toString().contains("Cтраницы"))
                 .filter(e -> e.outerHtml().startsWith("<b>Cтраницы"))
                 .findAny();
-        findLinksToNextPages(pages);
-        List<Element> links = new ArrayList<>();
+        //List<String> ww = links.get().childNodes().stream().map(e -> e.baseUri()).toList();
+        List<String> ee = new ArrayList<>();
+                doc.getAllElements().stream()
+                .filter(e -> e.outerHtml().startsWith("<b>Cтраницы"))
+                .findAny().ifPresent(element -> element.childNodes().stream().forEach(e -> {
+                   String link =  e.baseUri();
+                   ee.add(link);
+                        }));
+
+        
+        //findLinksToNextPages(pages);
+        //List<Element> links = new ArrayList<>();
+        System.out.println();
 
         for (Element element : foundBooks) {
             System.out.println(element.text());
@@ -54,12 +65,14 @@ public class AlibSearcher {
 
 // author=%F0%EE%EC%E0%F8%EA%E8%ED+&title=&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby=0&Bo1=%CD%E0%E9%F2%E8
     }
-
+// pages.get().stream().map(element -> element.baseUri()).collect(Collectors.toList());
     private void findLinksToNextPages(Optional<Element> pages) {
         int s = pages.get().childNodeSize();
+        List<String> links = new ArrayList<>();
+        List<Element> ww = pages.get().stream().filter(element -> !element.html().isBlank()).collect(Collectors.toList());
         for (int i = 0; i < s; i++){
             Element qq = pages.get().child(i);
-            qq.html();
+            links.add(qq.html());
         }
     }
 }
