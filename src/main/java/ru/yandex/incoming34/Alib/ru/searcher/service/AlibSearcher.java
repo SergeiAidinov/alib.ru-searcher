@@ -1,5 +1,6 @@
 package ru.yandex.incoming34.Alib.ru.searcher.service;
 
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -19,10 +20,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service("alibsearcher")
+@AllArgsConstructor
 public class AlibSearcher {
+
+    private final PageCollector pageCollector;
 
     @SneakyThrows
     public void search(List<SearchRequest> searchRequests) {
+        pageCollector.collectDocuments(searchRequests);
         final Set<Document> foundDocuments = collectDocuments(searchRequests);
         final Set<String> authors = searchRequests.stream()
                 .map(SearchRequest::getAuthor).collect(Collectors.toSet());
