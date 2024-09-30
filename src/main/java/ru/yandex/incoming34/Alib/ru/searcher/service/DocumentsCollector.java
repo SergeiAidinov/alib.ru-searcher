@@ -12,9 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Service
-public class PageCollector {
-
-    //private final Set<Document> documents = new HashSet<>();
+public class DocumentsCollector {
 
     protected Set<Document> collectDocuments(List<SearchRequest> searchRequests) {
         final Set<Document> documents = new HashSet<>();
@@ -23,7 +21,6 @@ public class PageCollector {
                 loadDocumentByLink(link).ifPresent(documents::add));
         final Set<String> nextLinks = collectNextLinks(documents);
         nextLinks.forEach(nextLink -> loadDocumentByLink(nextLink).ifPresent(documents::add));
-
         return documents;
     }
 
@@ -48,7 +45,7 @@ public class PageCollector {
             System.out.println("===> " + link);
             optionalDocument = Optional.of(Jsoup.connect(link).post());
         } catch (IOException e) {
-            //continue;
+            return optionalDocument;
         }
         optionalDocument.ifPresent(document -> document.charset(StandardCharsets.UTF_16));
         return optionalDocument;
@@ -56,7 +53,6 @@ public class PageCollector {
 
     private Set<String> collectInitialLinks(List<SearchRequest> searchRequests) {
         final Set<String> initialLinks = new HashSet<>();
-
         for (SearchRequest searchRequest : searchRequests) {
             final String windows1251author = Objects.nonNull(searchRequest.getAuthor()) ?
                     URLEncoder.encode(searchRequest.getAuthor(), Charset.forName("windows-1251"))
@@ -73,31 +69,4 @@ public class PageCollector {
         }
         return initialLinks;
     }
-
-    private Set<Document> findDocuments(List<SearchRequest> searchRequests) {
-        final Set<Document> foundDocuments = new HashSet<>();
-        for (SearchRequest searchRequest : searchRequests) {
-            final String windows1251author = Objects.nonNull(searchRequest.getAuthor()) ?
-                    URLEncoder.encode(searchRequest.getAuthor(), Charset.forName("windows-1251"))
-                    : "";
-            final String windows1251bookName = Objects.nonNull(searchRequest.getBookName()) ?
-                    URLEncoder.encode(searchRequest.getBookName(), Charset.forName("windows-1251"))
-                    : "";
-            final String request = "https://www.alib.ru/findp.php4"
-                    + "?author=" + windows1251author
-                    + "+&title=" + windows1251bookName
-                    + "+&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby="
-                    + "0&Bo1=%CD%E0%E9%F2%E8";
-            Document document;
-            try {
-                document = Jsoup.connect(request).post();
-            } catch (IOException e) {
-                continue;
-            }
-            document.charset(StandardCharsets.UTF_16);
-            foundDocuments.add(document);
-        }
-        return foundDocuments;
-    }
-
 }
