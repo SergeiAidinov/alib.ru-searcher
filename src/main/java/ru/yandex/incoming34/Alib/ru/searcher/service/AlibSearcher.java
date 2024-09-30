@@ -7,55 +7,81 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 import ru.yandex.incoming34.Alib.ru.searcher.dto.BookSeller;
+import ru.yandex.incoming34.Alib.ru.searcher.dto.SearchRequest;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service("alibsearcher")
 public class AlibSearcher {
 
     @SneakyThrows
-    public void search(final String author, final String bookName) {
-        final String windows1251author = Objects.nonNull(author) ?
-                java.net.URLEncoder.encode(author, Charset.forName("windows-1251"))
-                : "";
-        final String windows1251bookName = Objects.nonNull(bookName) ?
-                java.net.URLEncoder.encode(bookName, Charset.forName("windows-1251"))
-                : "";
-
-
-        final String request = "https://www.alib.ru/findp.php4"
-                + "?author=" + windows1251author
-                + "+&title=" + windows1251bookName
-                + "+&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby="
-                + "0&Bo1=%CD%E0%E9%F2%E8";
-
-
-        final Document document = Jsoup.connect(request).post();
-        document.charset(StandardCharsets.UTF_16);
-        final Elements elements = document.getElementsByTag("p");
-        final List<Element> foundBooks = elements.stream().filter(element -> element.text().contains(author)).collect(Collectors.toList());
-        final List<String> linksToNextPages = new ArrayList<>();
-        document.getAllElements().stream()
-                .filter(e -> e.outerHtml().startsWith("<b>Cтраницы"))
-                .findAny()
-                .ifPresent(element -> element.childNodes().forEach(e -> {
-                   String link =  e.baseUri();
-                   linksToNextPages.add(link);
-                        }));
+    public void search(List<SearchRequest> searchRequests) {
+        final Set<Document> foundDocuments = collectDocuments(searchRequests);
+        final Set<String> authors = searchRequests.stream()
+                .map(SearchRequest::getAuthor).collect(Collectors.toSet());
+        final Set<Element> foundBooks = findBooks(foundDocuments, authors);
+        final Set<String> linksToNextPages = findLinksToNextpages(foundDocuments);
         System.out.println();
+    }
 
-        for (Element element : foundBooks) {
-            int price = derivePrice(element);
-            System.out.println(deriveBookName(element) + " " + derivePrice(element) + " " +  deriveBookSeller(element).toString());
-            deriveBookSeller(element);
-
+    private Set<String> findLinksToNextpages(Set<Document> foundDocuments) {
+        final Set<String> linksToNextPages = new HashSet<>();
+        for (Document document : foundDocuments) {
+            document.getAllElements().stream()
+                    .filter(e -> e.outerHtml().startsWith("<b>Cтраницы"))
+                    .findAny()
+                    .ifPresent(element -> element.childNodes().forEach(e -> {
+                        String link = e.absUrl("href").trim();
+                        System.out.println(link);
+                        if (!link.isEmpty()) linksToNextPages.add(link);
+                    }));
         }
-// author=%F0%EE%EC%E0%F8%EA%E8%ED+&title=&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby=0&Bo1=%CD%E0%E9%F2%E8
+        return linksToNextPages;
+    }
+
+    private Set<Element> findBooks(Set<Document> foundDocuments, Set<String> authors) {
+        final Set<Element> foundBooks = new HashSet<>();
+        for (Document document : foundDocuments) {
+            Elements elements = document.getElementsByTag("p");
+            for (String author : authors) {
+                elements.stream().filter(element -> element.text().contains(author))
+                        .forEach(element -> foundBooks.add(element));
+            }
+        }
+        return foundBooks;
+    }
+
+    private Set<Document> collectDocuments(List<SearchRequest> searchRequests) {
+        final Set<Document> foundDocuments = new HashSet<>();
+        for (SearchRequest searchRequest : searchRequests) {
+            final String windows1251author = Objects.nonNull(searchRequest.getAuthor()) ?
+                    java.net.URLEncoder.encode(searchRequest.getAuthor(), Charset.forName("windows-1251"))
+                    : "";
+            final String windows1251bookName = Objects.nonNull(searchRequest.getBookName()) ?
+                    java.net.URLEncoder.encode(searchRequest.getBookName(), Charset.forName("windows-1251"))
+                    : "";
+            final String request = "https://www.alib.ru/findp.php4"
+                    + "?author=" + windows1251author
+                    + "+&title=" + windows1251bookName
+                    + "+&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby="
+                    + "0&Bo1=%CD%E0%E9%F2%E8";
+            Document document;
+            try {
+                document = Jsoup.connect(request).post();
+            } catch (IOException e) {
+                continue;
+            }
+            document.charset(StandardCharsets.UTF_16);
+            foundDocuments.add(document);
+        }
+        return foundDocuments;
     }
 
     private BookSeller deriveBookSeller(final Element element) {
