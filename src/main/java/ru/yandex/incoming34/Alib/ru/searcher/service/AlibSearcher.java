@@ -7,6 +7,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
+import ru.yandex.incoming34.Alib.ru.searcher.dto.BookData;
 import ru.yandex.incoming34.Alib.ru.searcher.dto.BookSeller;
 import ru.yandex.incoming34.Alib.ru.searcher.dto.SearchRequest;
 
@@ -28,8 +29,23 @@ public class AlibSearcher {
         final Set<Element> foundBooks = findBooks(collectedDocuments, authors);
         System.out.println();
         for (final Element foundBook : foundBooks) {
-            System.out.println(deriveBookSeller(foundBook) + " " +deriveBookName(foundBook) + " " + derivePrice(foundBook));
+            Optional<BookData> optionalBookData = compileBookData(foundBook);
+            optionalBookData.ifPresent(System.out::println);
+            //System.out.println(deriveBookSeller(foundBook) + " " +deriveBookName(foundBook) + " " + derivePrice(foundBook));
         }
+        System.out.println("Unparsable elements: " + unparsableElements);
+    }
+
+    private Optional<BookData> compileBookData(Element foundBook) {
+        Optional<BookData> optionalBookData = Optional.empty();
+        try {
+            BookData bookData = new BookData(deriveBookSeller(foundBook), deriveBookName(foundBook), derivePrice(foundBook));
+            optionalBookData = Optional.of(bookData);
+        } catch (Exception e) {
+            unparsableElements.add(foundBook);
+            return optionalBookData;
+        }
+        return optionalBookData;
     }
 
     private Set<Element> findBooks(Set<Document> foundDocuments, Set<String> authors) {
@@ -44,39 +60,27 @@ public class AlibSearcher {
         return foundBooks;
     }
 
-    private BookSeller deriveBookSeller(final Element element) {
-        try {
+    private BookSeller deriveBookSeller(final Element element) throws Exception {
             final String linkToBookSeller = element.childNodes().get(4).attributes().attribute("href").getValue();
             final int start = element.childNodes().get(4).toString().indexOf("BS");
             final int fin = element.childNodes().get(4).toString().lastIndexOf('<');
             final String bookSellerName = element.childNodes().get(4).toString().substring(start, fin);
             return new BookSeller(bookSellerName, linkToBookSeller);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
-    private Integer derivePrice(Element element) {
+    private Integer derivePrice(Element element) throws Exception {
         final StringBuilder builder = new StringBuilder();
-        try {
             final String textOfElement = element.childNodes().get(5).toString();
             final int initPosition = textOfElement.indexOf("Цена: ");
             for (int i = initPosition; i < textOfElement.length(); i++) {
                 Character c = textOfElement.charAt(i);
                 if (Character.isDigit(c)) builder.append(c);
             }
-        } catch (Exception exception) {
-            return null;
-        }
         return Integer.parseInt(builder.toString().trim());
     }
 
-    private String deriveBookName(final Element element) {
-        try {
+    private String deriveBookName(final Element element) throws  Exception {
             return element.childNodes().get(0).childNode(0).toString();
-        } catch (Exception exception) {
-            return null;
-        }
     }
 
 }
