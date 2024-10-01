@@ -10,26 +10,18 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.Phaser;
 
 //@Service
-public class DocumentsCollector implements Runnable {
+public class DocumentsCollector {
 
-    private final Phaser phaser;
-    private final ExecutorService executor
-            = Executors.newCachedThreadPool();
+    private final ExecutorService executor;
 
-    public DocumentsCollector(Phaser phaser, List<SearchRequest> searchRequests) {
-        this.phaser = phaser;
+    public DocumentsCollector(ExecutorService executor) {
+        this.executor = executor;
     }
 
-    protected Future<Set<Document>> collectDocuments(SearchRequest searchRequest) {
-        return executor.submit(() -> {
-            return doCollectDocuments(searchRequest);
-        });
-
+    protected Set<Document> collectDocuments(SearchRequest searchRequest) {
+        return doCollectDocuments(searchRequest);
     }
 
     private Set<Document> doCollectDocuments (SearchRequest searchRequest){
@@ -39,7 +31,8 @@ public class DocumentsCollector implements Runnable {
                 loadDocumentByLink(link).ifPresent(documents::add));
         final Set<String> nextLinks = collectNextLinks(documents);
         nextLinks.forEach(nextLink -> loadDocumentByLink(nextLink).ifPresent(documents::add));
-        phaser.arriveAndDeregister();
+        //phaser.arriveAndDeregister();
+        executor.shutdown();
         return documents;
     }
 
@@ -87,10 +80,5 @@ public class DocumentsCollector implements Runnable {
             initialLinks.add(link);
         //}
         return initialLinks;
-    }
-
-    @Override
-    public void run() {
-
     }
 }
