@@ -2,7 +2,6 @@ package ru.yandex.incoming34.Alib.ru.searcher.service;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.springframework.stereotype.Service;
 import ru.yandex.incoming34.Alib.ru.searcher.dto.SearchRequest;
 
 import java.io.IOException;
@@ -10,17 +9,37 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Phaser;
 
-@Service
-public class DocumentsCollector {
+//@Service
+public class DocumentsCollector implements Runnable {
 
-    protected Set<Document> collectDocuments(List<SearchRequest> searchRequests) {
+    private final Phaser phaser;
+    private final ExecutorService executor
+            = Executors.newCachedThreadPool();
+
+    public DocumentsCollector(Phaser phaser, List<SearchRequest> searchRequests) {
+        this.phaser = phaser;
+    }
+
+    protected Future<Set<Document>> collectDocuments(SearchRequest searchRequest) {
+        return executor.submit(() -> {
+            return doCollectDocuments(searchRequest);
+        });
+
+    }
+
+    private Set<Document> doCollectDocuments (SearchRequest searchRequest){
         final Set<Document> documents = new HashSet<>();
-        final Set<String> initialLinks = collectInitialLinks(searchRequests);
+        final Set<String> initialLinks = collectInitialLinks(searchRequest);
         initialLinks.stream().filter(link -> !link.isEmpty()).forEach(link ->
                 loadDocumentByLink(link).ifPresent(documents::add));
         final Set<String> nextLinks = collectNextLinks(documents);
         nextLinks.forEach(nextLink -> loadDocumentByLink(nextLink).ifPresent(documents::add));
+        phaser.arriveAndDeregister();
         return documents;
     }
 
@@ -51,9 +70,9 @@ public class DocumentsCollector {
         return optionalDocument;
     }
 
-    private Set<String> collectInitialLinks(List<SearchRequest> searchRequests) {
+    private Set<String> collectInitialLinks(SearchRequest searchRequest) {
         final Set<String> initialLinks = new HashSet<>();
-        for (SearchRequest searchRequest : searchRequests) {
+        //for (SearchRequest searchRequest : searchRequests) {
             final String windows1251author = Objects.nonNull(searchRequest.getAuthor()) ?
                     URLEncoder.encode(searchRequest.getAuthor(), Charset.forName("windows-1251"))
                     : "";
@@ -66,7 +85,12 @@ public class DocumentsCollector {
                     + "+&seria=+&izdat=+&isbnp=&god1=&god2=&cena1=&cena2=&sod=&bsonly=&gorod=&lday=&minus=+&sumfind=1&tipfind=&sortby="
                     + "0&Bo1=%CD%E0%E9%F2%E8";
             initialLinks.add(link);
-        }
+        //}
         return initialLinks;
+    }
+
+    @Override
+    public void run() {
+
     }
 }

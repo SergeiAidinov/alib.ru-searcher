@@ -2,7 +2,6 @@ package ru.yandex.incoming34.Alib.ru.searcher.service;
 
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
-import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -12,28 +11,78 @@ import ru.yandex.incoming34.Alib.ru.searcher.dto.BookSeller;
 import ru.yandex.incoming34.Alib.ru.searcher.dto.SearchRequest;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.Phaser;
 
 @Service("alibsearcher")
 @AllArgsConstructor
 public class AlibSearcher {
 
-    private final DocumentsCollector documentsCollector;
+    //private final DocumentsCollector documentsCollector;
     private final List<Element> unparsableElements = new ArrayList<>();
+    private final Phaser phaser = new Phaser();
+    private final ConcurrentHashMap<SearchRequest, Future<Set<Document>>> requestsWithResults = new ConcurrentHashMap<>();
+    private final HashMap<SearchRequest, Set<BookData>> foundBooks = new HashMap<>();
+
 
     @SneakyThrows
     public void search(List<SearchRequest> searchRequests) {
-        Set<Document> collectedDocuments = documentsCollector.collectDocuments(searchRequests);
+        //ConcurrentLinkedQueue<SearchRequest> searchRequestQueue = new ConcurrentLinkedQueue<>();
+        List<SearchRequest> modifiableSearchRequests = new ArrayList<>(searchRequests);
+        while (!modifiableSearchRequests.isEmpty()) {
+            if (phaser.getRegisteredParties() >= 8) continue;
+            //if (!searchRequests.isEmpty()) {
+            DocumentsCollector documentsCollector = new DocumentsCollector(phaser, searchRequests);
+            SearchRequest searchRequest = modifiableSearchRequests.remove(0);
+            phaser.register();
+            requestsWithResults.put(searchRequest, documentsCollector.collectDocuments(searchRequest));
+            // }
+        }
+
+       /* Set<Document> collectedDocuments = documentsCollector.collectDocuments(searchRequests);
         final Set<String> authors = searchRequests.stream()
                 .map(SearchRequest::getAuthor).collect(Collectors.toSet());
         final Set<Element> foundBooks = findBooks(collectedDocuments, authors);
-        System.out.println();
-        for (final Element foundBook : foundBooks) {
+        System.out.println();*/
+        while (!phaser.isTerminated()) {
+        }
+        for (Map.Entry<SearchRequest, Future<Set<Document>>> result : requestsWithResults.entrySet()) {
+            for (Map.Entry<SearchRequest, Future<Set<Document>>> searchRequestFutureEntry : Arrays.asList(result)) {
+                Set<Element> bookElements = findBookElements(searchRequestFutureEntry.getValue().get(), searchRequestFutureEntry.getKey().getAuthor());
+                Set<BookData> bookDataSet = compileBookDatas(bookElements);
+                foundBooks.put(searchRequestFutureEntry.getKey(), bookDataSet);
+
+            }
+        }
+
+
+        /*for (final Element foundBook : foundBooks) {
             Optional<BookData> optionalBookData = compileBookData(foundBook);
             optionalBookData.ifPresent(System.out::println);
             //System.out.println(deriveBookSeller(foundBook) + " " +deriveBookName(foundBook) + " " + derivePrice(foundBook));
-        }
+        }*/
         System.out.println("Unparsable elements: " + unparsableElements);
+    }
+
+    private Set<BookData> compileBookDatas(Set<Element> elements) {
+        Set<BookData> bookDataSet = new HashSet<>();
+        for (Element element : elements) {
+            compileBookData(element).ifPresent(bookDataSet::add);
+        }
+        return bookDataSet;
+    }
+
+    private Set<Element> findBookElements(Set<Document> foundDocuments, String author) {
+        final Set<Element> foundBooks = new HashSet<>();
+        for (Document document : foundDocuments) {
+            Elements elements = document.getElementsByTag("p");
+            //for (String author : authors) {
+                elements.stream().filter(element -> element.text().contains(author))
+                        .forEach(foundBooks::add);
+            //}
+        }
+        return foundBooks;
     }
 
     private Optional<BookData> compileBookData(Element foundBook) {

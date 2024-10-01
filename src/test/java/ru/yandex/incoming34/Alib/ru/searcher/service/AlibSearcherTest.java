@@ -28,8 +28,8 @@ class AlibSearcherTest {
 
         ));*/
         //alibSearcher.search(List.of(new SearchRequest("Иванов", null)));
-        alibSearcher.search(List.of(new SearchRequest("Васин", null)));
-        //alibSearcher.search(List.of(new SearchRequest("Иванов", "Основы программирования")));
+        //alibSearcher.search(List.of(new SearchRequest("Васин", null)));
+        alibSearcher.search(List.of(new SearchRequest("Иванов", "Основы программирования")));
         //"%F0%EE%EC%E0%F8%EA%E8%ED"
     }
 
