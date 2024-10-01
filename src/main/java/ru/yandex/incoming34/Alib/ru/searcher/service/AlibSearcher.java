@@ -18,26 +18,28 @@ import java.util.concurrent.*;
 public class AlibSearcher {
 
     private final List<Element> unparsableElements = new ArrayList<>();
-    private final ExecutorService executor = Executors.newFixedThreadPool(8);
+    private final ExecutorService executor = Executors.newFixedThreadPool(128);
     private final ConcurrentHashMap<SearchRequest, Future<Set<Document>>> requestsWithResults
             = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedQueue<DocumentsCollector> documentsCollectors = new ConcurrentLinkedQueue<>();
     private final HashMap<SearchRequest, Set<BookData>> foundBooks = new HashMap<>();
 
 
     @SneakyThrows
     public void search(List<SearchRequest> searchRequests) {
+        final long startTime = System.currentTimeMillis();
         //List<SearchRequest> modifiableSearchRequests = new ArrayList<>(searchRequests);
-        ConcurrentLinkedQueue<SearchRequest> requestQueue  = new ConcurrentLinkedQueue<>(searchRequests);
-        while (!requestQueue.isEmpty()) {
+        Queue<SearchRequest> requestQueue = new LinkedList<>(searchRequests);
+        while (true) {
             //if (phaser.getRegisteredParties() >= 8) continue;
             SearchRequest searchRequest = requestQueue.remove();
-            DocumentsCollector documentsCollector = new DocumentsCollector(executor);
+            DocumentsCollector newDocumentsCollector = new DocumentsCollector(executor);
+            documentsCollectors.add(newDocumentsCollector);
+            DocumentsCollector documentsCollector = documentsCollectors.poll();
             Future<Set<Document>> submitted = executor.submit(() -> documentsCollector.collectDocuments(searchRequest));
-
-            //SearchRequest searchRequest = modifiableSearchRequests.remove(0);
             requestsWithResults.put(searchRequest, submitted);
+            if (requestQueue.isEmpty() && documentsCollectors.isEmpty()) break;
         }
-
         while (!executor.isTerminated()) {
         }
         //executor.isTerminated();
@@ -49,6 +51,7 @@ public class AlibSearcher {
             }
         }
         System.out.println("Unparsable elements: " + unparsableElements);
+        System.out.println("Work is Done in " + (System.currentTimeMillis() - startTime)  + " ms");
     }
 
     private Set<BookData> compileDataForBooks(Set<Element> elements) {

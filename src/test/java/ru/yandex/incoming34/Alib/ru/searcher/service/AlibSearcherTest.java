@@ -22,12 +22,12 @@ class AlibSearcherTest {
     @Test
     public void searchTest(){
         System.out.println(alibSearcher);
-        alibSearcher.search(List.of(
+       /* alibSearcher.search(List.of(
                 new SearchRequest("Ромашкин", "Современное руководство пчеловода"),
                 new SearchRequest("Иванов", "Основы программирования")
 
-        ));
-        //alibSearcher.search(List.of(new SearchRequest("Иванов", null)));
+        ));*/
+        alibSearcher.search(List.of(new SearchRequest("Иванов", null)));
         //alibSearcher.search(List.of(new SearchRequest("Васин", null)));
         //alibSearcher.search(List.of(new SearchRequest("Иванов", "Основы программирования")));
         //"%F0%EE%EC%E0%F8%EA%E8%ED"
